@@ -6,6 +6,9 @@ class Converter:
 
   def __init__(self, fpath):
     self.df=None
+    self.timedelta=None
+    self.startdatetime=None
+
     with open (fpath,encoding='utf-8') as f:
       self.df = pd.read_csv(f,dtype={'Conta':str})
     
@@ -18,9 +21,12 @@ class Converter:
     try: self.enrich()
     except: pass
 
+    self.timedelta=( pd.to_datetime(self.df['Data do Evento']).max() - pd.to_datetime(self.df['Data do Evento']).min() ).seconds
+    self.startdatetime = pd.to_datetime(self.df['Data do Evento']).min()
+
 
   def enrich(self, ignore_irrelevant=True):
-    # Adiciona aliases ao dataframe. Ajuda na compreensão das interações entre módulos e mensagens de erro
+    # Adiciona aliases ao dataframe. Ajuda na compreensão das interações entre módulos e mensagens de erro. Depende da existência da planilha do dicionário
     df_rec = pd.read_csv( f'https://docs.google.com/spreadsheets/export?format=csv&id={config.google_spreadsheet_id}&gid={config.google_wsht_modules_id}' )
     df_msg = pd.read_csv( f'https://docs.google.com/spreadsheets/export?format=csv&id={config.google_spreadsheet_id}&gid={config.google_wsht_msgs_id}' )
 
@@ -37,7 +43,7 @@ class Converter:
       self.df = self.df[self.df['Incluir']==1]
 
 
-  def to_sequences(self, key='Conta', elmt='fullmsg',useAlias=True):
+  def to_sequences(self, key='Conta', elmt='fullmsg',useAlias=True, expand_sequences=True):
     """Tranforma os dados tabulares em sequências"""
 
     def build_full_msg(rec):
@@ -55,10 +61,13 @@ class Converter:
     self.df.fillna(value={elmt:'OK'},inplace=True)
     
     grouped = self.df.groupby(key)
-    groupToSeq = lambda g: tuple( g.sort_values(by=key,ascending=True)[elmt].values )
 
     # formata o dataframe em sequências
+    groupToSeq = lambda g: list( g.sort_values(by=key,ascending=True)[elmt].values )
     seqs = grouped.apply(groupToSeq)
+    if expand_sequences:
+      seqs = seqs.apply( lambda seq: [ piece for event in seq for piece in event.split('::') if piece!='OK' ] )
+
     df_s = pd.DataFrame.from_records(seqs,index=seqs.index)
     df_s = pd.DataFrame( df_s.groupby(df_s.columns.tolist(),dropna=False).size(), columns=['count'] )
     df_s.reset_index(inplace=True)
