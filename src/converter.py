@@ -2,10 +2,14 @@ import config
 import pandas as pd
 import numpy as np
 
+from sankey import gen_sankey_plotly
+import sankey
+
 class Converter:
 
   def __init__(self, fpath):
     self.df=None
+    self.df_seq = None
     self.timedelta=None
     self.startdatetime=None
 
@@ -24,6 +28,9 @@ class Converter:
     self.timedelta=( pd.to_datetime(self.df['Data do Evento']).max() - pd.to_datetime(self.df['Data do Evento']).min() ).seconds
     self.startdatetime = pd.to_datetime(self.df['Data do Evento']).min()
 
+  @classmethod
+  def from_combiner(self):
+    return
 
   def enrich(self, ignore_irrelevant=True):
     # Adiciona aliases ao dataframe. Ajuda na compreensão das interações entre módulos e mensagens de erro. Depende da existência da planilha do dicionário
@@ -75,16 +82,17 @@ class Converter:
     # adiciona prefixo p/ cada nível (menos o último, que é a contagem)
     for i in df_s.columns[:-1]:
       df_s[i] = df_s[i].apply(lambda x: f'{i}_{x}' if not pd.isnull(x) else np.nan)
+
+    self.df_seq = df_s
     
     return df_s
 
   def show(self):
     print(self.df)
 
-
-if __name__=='__main__':
-  fpath='data/Registros de Auditoria-data-30_09_2021 15_59_50.csv'
-  c = Converter(fpath)
-  print(c.to_sequences())
+  def toSankey(self, num_levels=5, filter='greaterthan_5'):
+    """Retorna objeto gráfico contendo o Sankey Diagram (Plotly)"""
+    sankey_go, plot_data = gen_sankey_plotly(self.to_sequences(),num_levels=num_levels, filter=filter)
+    return sankey_go, plot_data
 
   

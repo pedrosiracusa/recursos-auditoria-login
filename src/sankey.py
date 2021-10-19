@@ -2,14 +2,15 @@ from itertools import cycle
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly import colors
- 
-def genSankey(df, num_levels=5, viewEnd=True, filter=None, labelsmap=None):
 
-  setAlpha = lambda hex,alpha: f"rgba{tuple( list( colors.hex_to_rgb(hex))+[alpha])}"
-  removeLabelPrefix = lambda strg: strg.split('_',maxsplit=1)[1]
 
-  df=df.copy()
 
+def gen_sankey_data(df, num_levels, filter):
+  """Gera dados de entrada para o Sankey diagram, a partir de um dataframe formatado como sequências"""
+  
+  df = df.copy()
+
+  # applies filter
   if filter:
     f,n = filter.split('_')
     df = {
@@ -19,15 +20,16 @@ def genSankey(df, num_levels=5, viewEnd=True, filter=None, labelsmap=None):
       'lowerthan': lambda df, n: df[df['count']<n]
     }[f](df, int(n))
 
-  if viewEnd==True:
-    for i in df.columns:
-      df[i].fillna(f"{i}_END",inplace=True)
+  # makes last node of sequence followed by END
+  for i in df.columns:
+    df[i].fillna(f"{i}_END",inplace=True)
 
   num_threads = df.groupby([0,1]).agg('sum')['count'].sum() # total number of sequences (threads) of user interactions
 
   num_levels = min(len(df.columns)-1,num_levels) # prevent specifying invalid number of levels
   num_levels = max(num_levels,2) # at least 2 levels 
 
+  removeLabelPrefix = lambda strg: strg.split('_',maxsplit=1)[1]
   def getLinks(df,cols=[0,1]):
     # Métricas: contagem, pct relativa, pct total
     d = df[cols+['count']].groupby(cols).agg(sum)
@@ -35,8 +37,6 @@ def genSankey(df, num_levels=5, viewEnd=True, filter=None, labelsmap=None):
     d_2 = d['count'].apply(lambda x: x/d.sum()).rename(columns={'count':'pct_level'})
     j = d.join(d_1).join(d_2).reset_index().to_records(index=False)
     return list(zip(* j ))
-
-    
 
   levels = []
   for i in range(num_levels-1):
@@ -62,6 +62,8 @@ def genSankey(df, num_levels=5, viewEnd=True, filter=None, labelsmap=None):
   getNodeDegree = lambda n: sum( v[i] for i,srcn in enumerate(s) if srcn==n )
   lookup = lambda d,k: d[k] if d.get(k,None) is not None else k
   
+
+  setAlpha = lambda hex,alpha: f"rgba{tuple( list( colors.hex_to_rgb(hex))+[alpha])}"
 
   data = dict(
     node = dict(
@@ -93,34 +95,24 @@ def genSankey(df, num_levels=5, viewEnd=True, filter=None, labelsmap=None):
                         '<extra></extra>'
 
     ),
-
-    other = dict(
-        numthreads = num_threads
-    )
   )
 
-
-  # Construindo o diagrama
-
-  fig = go.Figure(data=[go.Sankey(
-      valueformat='.0f',
-      node = data['node'],
-      link = data['link']
-
-      )])
-  return fig,data
-
-#fig, data= genSankey(d,num_levels=2,viewEnd=True,filter='greaterthan_10')
-
-
-if __name__=='__main__':
-  from converter import Converter
-
-  fpath='data/Registros de Auditoria-data-30_09_2021 15_59_50.csv'
-  c = Converter(fpath)
-
-
-  fig, data= genSankey(c.to_sequences() ,num_levels=4,viewEnd=True,filter='greaterthan_5')
-  fig.update_layout(title_text=f"Interações de {data['other']['numthreads']} usuários no Login. Janela temporal de  segundos.", font_size=10, height=800)
-  fig.show()
+  metadata = dict(
+    numthreads = num_threads
+  )
+  if filter: metadata['applied_filter']=filter
   
+  return data, metadata
+
+
+def gen_sankey_plotly(sequences_df, num_levels, filter):
+  sankey_data,additional_data = gen_sankey_data(sequences_df, num_levels, filter)
+  return go.Sankey(
+      valueformat='.0f',
+      node = sankey_data['node'],
+      link = sankey_data['link']
+      ), additional_data
+
+
+
+
