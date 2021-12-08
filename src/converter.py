@@ -7,14 +7,17 @@ import sankey
 
 class Converter:
 
-  def __init__(self, fpath):
+  def __init__(self, fpath=None, **kwargs):
     self.df=None
     self.df_seq = None
     self.timedelta=None
     self.startdatetime=None
 
-    with open (fpath,encoding='utf-8') as f:
-      self.df = pd.read_csv(f,dtype={'Conta':str})
+    if fpath:
+      with open (fpath,encoding='utf-8') as f:
+        self.df = pd.read_csv(f,dtype={'Conta':str})
+    else:
+      self.df=kwargs.get('df')
     
     self.preprocess()
 
@@ -22,10 +25,6 @@ class Converter:
   def from_combiner(self):
     return
 
-  @classmethod
-  def from_df(self,df):
-    self.df= df
-    self.preprocess()
 
   def preprocess(self):
     # Cleaning
