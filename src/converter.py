@@ -16,6 +16,18 @@ class Converter:
     with open (fpath,encoding='utf-8') as f:
       self.df = pd.read_csv(f,dtype={'Conta':str})
     
+    self.preprocess()
+
+  @classmethod
+  def from_combiner(self):
+    return
+
+  @classmethod
+  def from_df(self,df):
+    self.df= df
+    self.preprocess()
+
+  def preprocess(self):
     # Cleaning
     self.df.dropna(subset=['Conta'],inplace=True) # ignora interações em que o CPF não é capturado
     self.df.fillna(value={'msg':'OK'},inplace=True)
@@ -28,9 +40,6 @@ class Converter:
     self.timedelta=( pd.to_datetime(self.df['Data do Evento']).max() - pd.to_datetime(self.df['Data do Evento']).min() ).seconds
     self.startdatetime = pd.to_datetime(self.df['Data do Evento']).min()
 
-  @classmethod
-  def from_combiner(self):
-    return
 
   def enrich(self, ignore_irrelevant=True):
     # Adiciona aliases ao dataframe. Ajuda na compreensão das interações entre módulos e mensagens de erro. Depende da existência da planilha do dicionário
