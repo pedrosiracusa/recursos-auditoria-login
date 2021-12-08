@@ -18,6 +18,7 @@ class Converter:
         self.df = pd.read_csv(f,dtype={'Conta':str})
     else:
       self.df=kwargs.get('df').copy()
+
     
     self.preprocess()
 
