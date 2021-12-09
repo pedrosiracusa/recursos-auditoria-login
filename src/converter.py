@@ -99,10 +99,13 @@ class Converter:
   def show(self):
     print(self.df)
 
-  def toSankey(self, num_levels=5, filter='greaterthan_5', focusNode=None):
+  def toSankey(self, num_levels=5, filter='greaterthan_5', focusNode=None, rebuild_sequences=True):
     """Retorna objeto gráfico contendo o Sankey Diagram (Plotly)"""
 
-    seq_df = self.to_sequences()
+    if rebuild_sequences or self.df_seq is None:
+      seq_df = self.to_sequences()
+    else:
+      seq_df = self.df_seq
     
     if focusNode:
       focusNode_colnum = int(focusNode.split('_')[0])
